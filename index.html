@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Smart Incubator</title>
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ============================ NAVBAR ============================ -->
+  <nav class="navbar navbar-dark navbar-incubator sticky-top">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 brand">
+        <i class="bi bi-thermometer-half"></i> Smart Incubator
+      </span>
+      <span class="conn-pill" id="connPill">
+        <span class="dot" id="connDot"></span>
+        <span id="connText">Menghubungkan...</span>
+      </span>
+    </div>
+  </nav>
+
+  <!-- ============================ MAIN CONTENT ============================ -->
+  <main class="container-fluid main-content pb-5">
+
+    <!-- ===================== PAGE: DASHBOARD ===================== -->
+    <section id="page-dashboard" class="page active-page">
+
+      <!-- Alarm Banner -->
+      <div id="alarmBanner" class="alarm-banner d-none">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>ALARM AKTIF — Periksa kondisi sistem!</span>
+      </div>
+
+      <!-- Sensor Cards -->
+      <div class="row g-3 mt-2">
+        <div class="col-6 col-md-3">
+          <div class="card sensor-card">
+            <div class="card-body text-center">
+              <i class="bi bi-droplet-half sensor-icon icon-air"></i>
+              <div class="sensor-label">Suhu Udara</div>
+              <div class="sensor-value"><span id="valSuhu">--</span><span class="unit">°C</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card sensor-card">
+            <div class="card-body text-center">
+              <i class="bi bi-moisture sensor-icon icon-humidity"></i>
+              <div class="sensor-label">Kelembaban</div>
+              <div class="sensor-value"><span id="valRh">--</span><span class="unit">%</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card sensor-card">
+            <div class="card-body text-center">
+              <i class="bi bi-person-standing sensor-icon icon-skin"></i>
+              <div class="sensor-label">Suhu Kulit</div>
+              <div class="sensor-value"><span id="valSuhuKulit">--</span><span class="unit">°C</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card sensor-card">
+            <div class="card-body text-center">
+              <i class="bi bi-bell sensor-icon icon-alarm"></i>
+              <div class="sensor-label">Status Alarm</div>
+              <div class="sensor-value status-text" id="valAlarm">--</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actuator Cards -->
+      <div class="row g-3 mt-1">
+        <div class="col-6 col-md-3">
+          <div class="card actuator-card">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="actuator-label"><i class="bi bi-fan"></i> Kipas (PWM)</span>
+                <span class="actuator-value" id="valPwmKipas">0</span>
+              </div>
+              <div class="progress pwm-progress">
+                <div class="progress-bar bar-kipas" id="barKipas" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card actuator-card">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="actuator-label"><i class="bi bi-fire"></i> Heater (PWM)</span>
+                <span class="actuator-value" id="valPwmHeater">0</span>
+              </div>
+              <div class="progress pwm-progress">
+                <div class="progress-bar bar-heater" id="barHeater" style="width:0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card actuator-card">
+            <div class="card-body">
+              <div class="actuator-label mb-2"><i class="bi bi-play-circle"></i> Status Sistem</div>
+              <div class="system-status" id="valRunning">--</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card actuator-card">
+            <div class="card-body">
+              <div class="actuator-label mb-2"><i class="bi bi-shield-lock"></i> Hak Akses</div>
+              <div class="access-status" id="valAccess">Tersedia</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Control Panel -->
+      <div class="row g-3 mt-1">
+        <div class="col-12 col-lg-7">
+          <div class="card control-card h-100">
+            <div class="card-body">
+              <h6 class="control-title"><i class="bi bi-sliders"></i> Mode &amp; Setpoint</h6>
+
+              <div class="mode-switch mb-3">
+                <button class="btn mode-btn active" id="btnAirMode" data-mode="air">
+                  <i class="bi bi-wind"></i> Air Mode
+                </button>
+                <button class="btn mode-btn" id="btnSkinMode" data-mode="skin">
+                  <i class="bi bi-person"></i> Skin Mode
+                </button>
+              </div>
+
+              <div id="setpointAirGroup" class="setpoint-group">
+                <label class="form-label setpoint-label">Setpoint Suhu Udara</label>
+                <div class="setpoint-input-row">
+                  <button class="btn btn-step" data-target="setpointSuhu" data-step="-0.5">−</button>
+                  <input type="number" class="form-control setpoint-input" id="setpointSuhu" step="0.1" value="34.0">
+                  <button class="btn btn-step" data-target="setpointSuhu" data-step="0.5">+</button>
+                  <span class="unit-suffix">°C</span>
+                </div>
+              </div>
+
+              <div id="setpointSkinGroup" class="setpoint-group d-none">
+                <label class="form-label setpoint-label">Setpoint Suhu Kulit</label>
+                <div class="setpoint-input-row">
+                  <button class="btn btn-step" data-target="setpointKulit" data-step="-0.5">−</button>
+                  <input type="number" class="form-control setpoint-input" id="setpointKulit" step="0.1" value="36.0">
+                  <button class="btn btn-step" data-target="setpointKulit" data-step="0.5">+</button>
+                  <span class="unit-suffix">°C</span>
+                </div>
+              </div>
+
+              <div class="d-grid gap-2 mt-3">
+                <button class="btn btn-access" id="btnAccess">
+                  <i class="bi bi-key"></i> Ambil Hak Akses
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-5">
+          <div class="card control-card h-100">
+            <div class="card-body d-flex flex-column">
+              <h6 class="control-title"><i class="bi bi-power"></i> Kontrol Sistem</h6>
+              <div class="d-flex gap-2 mt-2">
+                <button class="btn btn-start flex-fill" id="btnStart">
+                  <i class="bi bi-play-fill"></i> Start
+                </button>
+                <button class="btn btn-stop flex-fill" id="btnStop">
+                  <i class="bi bi-stop-fill"></i> Stop
+                </button>
+              </div>
+
+              <hr class="my-3">
+
+              <h6 class="control-title"><i class="bi bi-journal-text"></i> Log Sistem</h6>
+              <div class="log-box flex-grow-1" id="logBox">
+                <div class="log-empty">Belum ada log konektivitas.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="row g-3 mt-1 mb-3">
+        <div class="col-12 col-lg-4">
+          <div class="card chart-card">
+            <div class="card-body">
+              <h6 class="chart-title">Suhu Udara (°C)</h6>
+              <canvas id="chartSuhu"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="card chart-card">
+            <div class="card-body">
+              <h6 class="chart-title">Kelembaban (%)</h6>
+              <canvas id="chartRh"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="card chart-card">
+            <div class="card-body">
+              <h6 class="chart-title">Suhu Kulit (°C)</h6>
+              <canvas id="chartSkin"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===================== PAGE: HISTORY ===================== -->
+    <section id="page-history" class="page">
+      <div class="card mt-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <h5 class="mb-0"><i class="bi bi-clock-history"></i> Riwayat Data</h5>
+            <div class="d-flex gap-2">
+              <button class="btn btn-export" id="btnExport">
+                <i class="bi bi-download"></i> Export CSV
+              </button>
+              <button class="btn btn-delete" id="btnDeleteHistory">
+                <i class="bi bi-trash"></i> Hapus Semua
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-history align-middle">
+              <thead>
+                <tr>
+                  <th>Waktu</th>
+                  <th>Suhu Udara (°C)</th>
+                  <th>Kelembaban (%)</th>
+                  <th>Suhu Kulit (°C)</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                <tr><td colspan="4" class="text-center text-muted py-4">Belum ada data riwayat.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PAGE: INFO ===================== -->
+    <section id="page-info" class="page">
+
+      <!-- Tentang Inkubator -->
+      <div class="card mt-3">
+        <div class="card-body">
+          <h5><i class="bi bi-info-circle"></i> Tentang Inkubator Bayi</h5>
+          <p>
+            Inkubator bayi adalah perangkat medis yang dirancang untuk memberikan lingkungan
+            yang terkendali bagi bayi prematur atau bayi dengan kebutuhan perawatan khusus.
+            Perangkat ini menjaga suhu, kelembaban, dan kondisi lingkungan lainnya agar tetap
+            stabil sesuai kebutuhan termoregulasi bayi, sehingga membantu proses pemulihan dan
+            tumbuh kembang bayi secara optimal.
+          </p>
+
+          <div class="row g-3 mt-3">
+            <div class="col-md-6">
+              <div class="info-mode-box mode-air-box">
+                <h6><i class="bi bi-wind"></i> Air Mode</h6>
+                <p class="mb-0">
+                  Mode kontrol berdasarkan suhu udara di dalam ruang inkubator, dibaca oleh
+                  sensor SHT35. Pada mode ini, sistem akan mengatur kerja kipas dan heater agar
+                  suhu udara sesuai dengan setpoint yang ditentukan. Mode ini merupakan mode
+                  default saat sistem pertama kali dinyalakan.
+                </p>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="info-mode-box mode-skin-box">
+                <h6><i class="bi bi-person"></i> Skin Mode</h6>
+                <p class="mb-0">
+                  Mode kontrol berdasarkan suhu kulit bayi, dibaca oleh sensor suhu kulit
+                  Medke T1307. Pada mode ini, sistem akan menyesuaikan kerja kipas dan heater
+                  agar suhu kulit bayi sesuai dengan setpoint yang ditentukan, sehingga lebih
+                  representatif terhadap kondisi termal tubuh bayi secara langsung.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cara Kerja Sistem -->
+      <div class="card mt-3">
+        <div class="card-body">
+          <h5><i class="bi bi-diagram-3"></i> Cara Kerja Sistem</h5>
+
+          <div class="workflow-step">
+            <div class="workflow-num">1</div>
+            <div class="workflow-content">
+              <h6>Input Mode &amp; Setpoint</h6>
+              <p>
+                Pengguna memilih mode kontrol (Air Mode atau Skin Mode) serta menentukan nilai
+                setpoint suhu sesuai mode yang dipilih melalui antarmuka web atau LCD
+                touchscreen. Data ini menjadi acuan target bagi sistem kontrol.
+              </p>
+            </div>
+          </div>
+
+          <div class="workflow-step">
+            <div class="workflow-num">2</div>
+            <div class="workflow-content">
+              <h6>Akuisisi Data Sensor oleh Arduino Uno</h6>
+              <p>
+                Arduino Uno membaca data dari sensor SHT35 (suhu &amp; kelembaban udara) dan
+                sensor suhu kulit Medke T1307 secara berkala, lalu mengirimkan data tersebut
+                ke Raspberry Pi melalui komunikasi Serial UART dalam format JSON.
+              </p>
+            </div>
+          </div>
+
+          <div class="workflow-step">
+            <div class="workflow-num">3</div>
+            <div class="workflow-content">
+              <h6>Pemrosesan Kontroler (Fuzzy Logic)</h6>
+              <p>
+                Berdasarkan nilai error (selisih antara setpoint dan nilai aktual) serta
+                perubahan error, Arduino Uno menjalankan algoritma fuzzy logic untuk menentukan
+                nilai PWM yang optimal bagi kipas dan heater, sehingga suhu dapat mendekati
+                setpoint secara halus dan stabil.
+              </p>
+            </div>
+          </div>
+
+          <div class="workflow-step">
+            <div class="workflow-num">4</div>
+            <div class="workflow-content">
+              <h6>Aktuasi dan Feedback Loop</h6>
+              <p>
+                Hasil keluaran fuzzy logic diterapkan ke kipas dan heater melalui sinyal PWM.
+                Perubahan kondisi lingkungan akibat aktuasi ini kembali dibaca oleh sensor,
+                menciptakan loop kendali tertutup (closed-loop) yang terus menyesuaikan diri
+                hingga kondisi mendekati setpoint yang diinginkan.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tim Perancang -->
+      <div class="card mt-3">
+        <div class="card-body">
+          <h5><i class="bi bi-people"></i> Tim Perancang</h5>
+          <div class="row g-3 mt-2">
+            <div class="col-md-4">
+              <div class="team-card">
+                <div class="team-icon"><i class="bi bi-cpu"></i></div>
+                <h6>Maulana Syarif Hidayatulloh</h6>
+                <div class="team-role">Hardware Engineer</div>
+                <p class="team-desc">
+                  Bertanggung jawab atas perancangan dan perakitan rangkaian elektronik,
+                  pemilihan komponen sensor dan aktuator, serta integrasi perangkat keras
+                  inkubator secara keseluruhan.
+                </p>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="team-card">
+                <div class="team-icon"><i class="bi bi-cpu-fill"></i></div>
+                <h6>Hasyim Muhammad Adam</h6>
+                <div class="team-role">Firmware Engineer</div>
+                <p class="team-desc">
+                  Bertanggung jawab atas pengembangan firmware Arduino, implementasi algoritma
+                  fuzzy logic untuk kontrol PWM kipas dan heater, serta komunikasi serial
+                  dengan Raspberry Pi.
+                </p>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="team-card">
+                <div class="team-icon"><i class="bi bi-globe"></i></div>
+                <h6>Muhammad Fauzi Abdullah</h6>
+                <div class="team-role">IoT &amp; Web Developer</div>
+                <p class="team-desc">
+                  Bertanggung jawab atas pengembangan backend Raspberry Pi, sinkronisasi data
+                  dengan Firebase, serta perancangan antarmuka pengguna berbasis web untuk
+                  dashboard, riwayat data, dan informasi sistem.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dokumentasi Skematik -->
+      <div class="card mt-3 mb-3">
+        <div class="card-body">
+          <h5><i class="bi bi-file-earmark-image"></i> Dokumentasi Skematik &amp; Wiring Diagram</h5>
+          <div class="row g-3 mt-2">
+            <div class="col-md-6">
+              <div class="doc-placeholder">
+                <i class="bi bi-diagram-2"></i>
+                <span>Skematik Rangkaian</span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="doc-placeholder">
+                <i class="bi bi-bezier2"></i>
+                <span>Wiring Diagram</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-muted small mt-2 mb-0">
+            * Gambar skematik dan wiring diagram dapat ditempatkan di folder
+            <code>assets/docs/</code> dan ditautkan pada bagian ini.
+          </p>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ============================ BOTTOM NAV ============================ -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-page="page-dashboard">
+      <i class="bi bi-speedometer2"></i>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-item" data-page="page-history">
+      <i class="bi bi-clock-history"></i>
+      <span>History</span>
+    </button>
+    <button class="nav-item" data-page="page-info">
+      <i class="bi bi-info-circle"></i>
+      <span>Info</span>
+    </button>
+  </nav>
+
+  <!-- Toast container -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
